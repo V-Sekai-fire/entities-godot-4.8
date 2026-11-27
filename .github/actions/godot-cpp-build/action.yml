@@ -29,6 +29,23 @@ runs:
         ref: ${{ inputs.godot-cpp-branch }}
         path: godot-cpp
 
+    # The runner path is long and godot-cpp has many objects, so the single
+    # `sh -c "ar rc ..."` string passes the 128 KiB per-argument limit
+    # ("sh: Argument list too long"). Make ar read a response file instead.
+    - name: Use a response file for ar
+      if: runner.os == 'Linux'
+      shell: sh
+      run: |
+        cat >> godot-cpp/tools/linux.py <<'EOF'
+
+        _generate_without_arcom_tempfile = generate
+
+
+        def generate(env):
+            _generate_without_arcom_tempfile(env)
+            env["ARCOM"] = "${TEMPFILE('$AR $ARFLAGS $TARGET $SOURCES', '$ARCOMSTR')}"
+        EOF
+
     - name: Extract API
       shell: sh
       run: ${{ inputs.bin }} --headless --dump-gdextension-interface --dump-extension-api
